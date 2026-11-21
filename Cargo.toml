@@ -1,0 +1,24 @@
+[package]
+name = "rustos-bootloader"
+version = "0.1.0"
+edition = "2021"
+description = "UEFI/BIOS bootloader tooling for RustOS: validates a kernel ELF and builds a bootable GPT (UEFI) or MBR (BIOS) disk image around it."
+license = "MIT OR Apache-2.0"
+
+[[bin]]
+name = "rustos-bootloader"
+path = "src/main.rs"
+
+[lib]
+name = "rustos_bootloader"
+path = "src/lib.rs"
+
+[dependencies]
+anyhow = "1"
+# 0.11 is the host-side disk-image builder. NOTE: this is NOT the crate the
+# kernel uses — the kernel uses `bootloader_api` 0.11 (entry point +
+# BootInfo). See docs/BOOT.md for the split.
+bootloader = "0.11"
+
+[profile.release]
+debug = false

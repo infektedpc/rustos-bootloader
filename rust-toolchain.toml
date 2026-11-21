@@ -1,0 +1,12 @@
+[toolchain]
+# Nightly is required to *build* this crate, not just to run it: the
+# `bootloader` 0.11 build script compiles its embedded UEFI/BIOS stages
+# with `cargo -Zbuild-std`, and those `-Z` flags are nightly-only. The
+# nested cargo invocations inherit the outer toolchain through
+# `RUSTUP_TOOLCHAIN`, so the outer cargo must itself be nightly —
+# building this crate with stable fails in the `bootloader` build script
+# ("the `-Z` flag is only accepted on the nightly channel").
+# rustup selects this toolchain automatically inside this directory.
+channel = "nightly"
+components = ["rust-src", "llvm-tools-preview"]
+targets = ["x86_64-unknown-none"]
