@@ -1,0 +1,8 @@
+# Nightly-only unstable flag, needed because the vendored `bootloader`
+# workspace manifest (vendor/bootloader/Cargo.toml) declares its test
+# kernels as `artifact = "bin"` dev-dependencies. Cargo refuses to
+# even parse that manifest without this flag, even though nothing here
+# builds those dev-dependencies. This repo already pins nightly in
+# rust-toolchain.toml, so the flag is always available.
+[unstable]
+bindeps = true

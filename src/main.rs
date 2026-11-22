@@ -90,13 +90,25 @@ fn main() -> ExitCode {
                 out.display(),
                 kernel_info.entry_point
             );
-            println!("Boot it with:");
+            println!("Boot it with (copy the VARS file first — QEMU writes to it):");
             if fat_only {
-                println!("  qemu-system-x86_64 -drive file={},format=raw -bios /usr/share/OVMF/OVMF_CODE.fd", out.display());
+                println!("  # --fat wrote only the ESP partition, not a bootable disk.");
+                println!("  # Inspect it with `rustos-image inspect`, or build a full");
+                println!("  # GPT disk with `rustos-bootloader --kernel <kernel> --out disk.img`.");
             } else if uefi {
-                println!("  qemu-system-x86_64 -drive file={},format=raw -bios /usr/share/OVMF/OVMF_CODE.fd", out.display());
+                println!("  cp /usr/share/OVMF/OVMF_VARS_4M.fd /tmp/OVMF_VARS.fd");
+                println!("  qemu-system-x86_64 -machine q35,accel=tcg -m 512M \\");
+                println!("    -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd \\");
+                println!("    -drive if=pflash,format=raw,file=/tmp/OVMF_VARS.fd \\");
+                println!(
+                    "    -drive format=raw,file={} -serial stdio -display none",
+                    out.display()
+                );
             } else {
-                println!("  qemu-system-x86_64 -drive file={},format=raw", out.display());
+                println!(
+                    "  qemu-system-x86_64 -drive format=raw,file={} -serial stdio -display none",
+                    out.display()
+                );
             }
             ExitCode::SUCCESS
         }

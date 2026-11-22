@@ -138,6 +138,11 @@ pub fn validate_kernel_elf(bytes: &[u8]) -> Result<KernelElf, ElfError> {
 /// * `uefi = false` — MBR/BIOS disk with the bootloader's BIOS stages.
 ///   Boot with SeaBIOS QEMU.
 ///
+/// `boot.json` is the serialised `BootConfig::default()`. The UEFI
+/// bootloader reads it when present and falls back to the same default
+/// when it is absent, so writing it changes nothing at boot — it just
+/// makes the boot configuration explicit and inspectable.
+///
 /// The kernel file is validated with [`validate_kernel_elf`] first.
 /// The image is written to `out_path` (overwritten if it exists).
 ///
@@ -145,6 +150,14 @@ pub fn validate_kernel_elf(bytes: &[u8]) -> Result<KernelElf, ElfError> {
 /// the `bootloader` crate, whose build script builds its UEFI/BIOS
 /// stages with a nightly toolchain and `rust-src` — make sure those are
 /// installed (`rustos-toolchain check`).
+/// `DiskImageBuilder` for `kernel_path`, with the default boot config
+/// attached so the ESP also carries `boot.json` (see `build_disk_image`).
+fn new_builder(kernel_path: &Path) -> bootloader::DiskImageBuilder {
+    let mut builder = bootloader::DiskImageBuilder::new(kernel_path.to_path_buf());
+    builder.set_boot_config(&bootloader::BootConfig::default());
+    builder
+}
+
 pub fn build_disk_image(
     kernel_path: &Path,
     out_path: &Path,
@@ -160,7 +173,7 @@ pub fn build_disk_image(
         )
     })?;
 
-    let builder = bootloader::DiskImageBuilder::new(kernel_path.to_path_buf());
+    let builder = new_builder(kernel_path);
     if uefi {
         builder
             .create_uefi_image(out_path)
@@ -187,7 +200,7 @@ pub fn build_uefi_fat_partition(kernel_path: &Path, out_path: &Path) -> anyhow::
             kernel_path.display()
         )
     })?;
-    bootloader::DiskImageBuilder::new(kernel_path.to_path_buf())
+    new_builder(kernel_path)
         .create_uefi_fat_partition(out_path)
         .map_err(|e| anyhow::anyhow!("failed to create UEFI FAT partition: {e:#}"))?;
     Ok(kernel)
@@ -294,6 +307,17 @@ mod tests {
         assert!(image.len() > 512, "disk image unexpectedly small");
         // A GPT disk has the "EFI PART" header at LBA 1 (byte offset 512).
         assert_eq!(&image[512..520], b"EFI PART");
+        // The ESP carries the UEFI bootloader and the serialised
+        // default boot config. Long/lowercase names live in LFN
+        // entries as UTF-16, and fatfs gives them numeric-tail short
+        // aliases: "boot.json" -> "BOOT~1  JSO" (the UTF-16 string
+        // "boot.json" also occurs inside bootx64.efi itself, so the
+        // short alias is the byte pattern that proves the *file* is
+        // there). "bootx64.efi" uppercases cleanly to 8.3, so its
+        // short entry starts with "BOOTX64".
+        let has = |needle: &[u8]| image.windows(needle.len()).any(|w| w == needle);
+        assert!(has(b"BOOTX64"), "ESP is missing efi/boot/bootx64.efi");
+        assert!(has(b"BOOT~1  JSO"), "ESP is missing boot.json");
         let _ = std::fs::remove_file(&kernel_path);
         let _ = std::fs::remove_file(&out_path);
     }

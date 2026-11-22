@@ -15,10 +15,15 @@ path = "src/lib.rs"
 
 [dependencies]
 anyhow = "1"
-# 0.11 is the host-side disk-image builder. NOTE: this is NOT the crate the
-# kernel uses — the kernel uses `bootloader_api` 0.11 (entry point +
-# BootInfo). See docs/BOOT.md for the split.
-bootloader = "0.11"
+# Vendored `bootloader` 0.11.17 (see vendor/bootloader) instead of the
+# crates.io crate. The code is unmodified upstream 0.11.17; the only
+# change is a `[patch.crates-io]` in its workspace root that points
+# `uefi` at the vendored, patched copy in vendor/uefi (see the
+# "Vendored uefi patch" section in the README). The patch section has
+# to live there because the bootloader's build script builds its UEFI
+# binary with a separate nested `cargo install --path uefi`, which a
+# [patch] in this manifest cannot reach.
+bootloader = { path = "vendor/bootloader" }
 
 [profile.release]
 debug = false
